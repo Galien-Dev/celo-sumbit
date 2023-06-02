@@ -6,7 +6,7 @@
 - [Prerequisites](#prerequisites)
 - [Step 1: Setting up the Truffle Project](#step-1-setting-up-the-truffle-project)
 - [Step 2: Setting up the Smart Contract](#step-2-setting-up-the-smart-contract)
-- [Step 3: Implementing the Auction Functionality](#step-3-implementing-the-auction-sunctionality)
+- [Step 3: Implementing the Auction Functionality](#step-3-implementing-the-auction-functionality)
 - [Step 4: Testing the Smart Contract](#step-4-testing-the-smart-contract)
 - [Step 5: Running the Tests](#step-5-running-the-tests)
 - [Conclusion](#conclusion)
@@ -96,47 +96,136 @@ Copy and paste the following code into the file:
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
+
+/**
+@dev Import statement for ERC721URIStorage from OpenZeppelin.
+*/
 import '@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol';
+
+/**
+@dev Import statement for ReentrancyGuard from OpenZeppelin.
+*/
 import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
 
 
+/**
+@title NFTAuction
+@dev A smart contract for conducting NFT auctions.
+*/
 contract NFTAuction is ERC721URIStorage, ReentrancyGuard {
 
+    /**
+    @dev Counter for tracking the number of tokens minted.
+    */
     uint256 public tokenCounter;
+
+    /**
+    @dev Counter for tracking the number of auction listings created.
+    */
     uint256 public listingCounter;
 
+    /**
+    @dev Constant representing the status of an open auction.
+    */
     uint8 public constant STATUS_OPEN = 1;
+
+    /**
+    @dev Constant representing the status of a completed auction.
+    */
     uint8 public constant STATUS_DONE = 2;
 
     uint256 public minAuctionIncrement = 10; // 10 percent
 
+    /**
+    * @dev Struct representing an auction listing.
+    */
     struct Listing {
-        address seller;
-        uint256 tokenId;
-        uint256 price; // display price
-        uint256 netPrice; // actual price
-        uint256 startAt;
-        uint256 endAt; 
-        uint8 status;
+        address seller;      // Address of the seller
+        uint256 tokenId;     // ID of the token being listed
+        uint256 price;       // Display price of the listing
+        uint256 netPrice;    // Actual price of the listing
+        uint256 startAt;     // Start timestamp of the auction
+        uint256 endAt;       // End timestamp of the auction
+        uint8 status;        // Status of the auction (1: Open, 2: Done)
     }
 
+    /**
+    @dev Emitted when a new NFT is minted.
+    @param minter The address of the minter.
+    @param nftID The ID of the minted NFT.
+    @param uri The URI of the token metadata.
+    */
     event Minted(address indexed minter, uint256 nftID, string uri);
+
+    /**
+    @dev Emitted when an auction listing is created.
+    @param listingId The ID of the auction listing.
+    @param seller The address of the seller.
+    @param price The display price of the listing.
+    @param tokenId The ID of the token being listed.
+    @param startAt The timestamp when the auction starts.
+    @param endAt The timestamp when the auction ends.
+    */
     event AuctionCreated(uint256 listingId, address indexed seller, uint256 price, uint256 tokenId, uint256 startAt, uint256 endAt);
+
+    /**
+    @dev Emitted when a new bid is created for an auction listing.
+    @param listingId The ID of the auction listing.
+    @param bidder The address of the bidder.
+    @param bid The value of the bid.
+    */
     event BidCreated(uint256 listingId, address indexed bidder, uint256 bid);
+
+    /**
+    @dev Emitted when an auction is completed.
+    @param listingId The ID of the auction listing.
+    @param seller The address of the seller.
+    @param bidder The address of the winning bidder.
+    @param bid The final bid value.
+    */
     event AuctionCompleted(uint256 listingId, address indexed seller, address indexed bidder, uint256 bid);
+
+    /**
+    @dev Emitted when a bidder withdraws their bid from an auction listing.
+    @param listingId The ID of the auction listing.
+    @param bidder The address of the bidder.
+    @param bid The amount of the withdrawn bid.
+    */
     event WithdrawBid(uint256 listingId, address indexed bidder, uint256 bid);
 
+    /**
+    @dev Mapping of listing ID to Listing struct, representing the auction listings.
+    */
     mapping(uint256 => Listing) public listings;
+
+    /**
+    @dev Mapping of listing ID to bidder address to the value of their bid.
+    */
     mapping(uint256 => mapping(address => uint256)) public bids;
+
+    /**
+    @dev Mapping of listing ID to the address of the highest bidder.
+    */
     mapping(uint256 => address) public highestBidder;
 
+    /**
+    * @dev Initializes the NFTAuction contract.
+    */
     constructor() ERC721("AmazonNFT", "ANFT") {
         tokenCounter = 0;
         listingCounter = 0;
     }
 
 
-    function mint(string memory tokenURI, address minterAddress) public returns (uint256) {
+    /**
+    * @dev Creates a new NFT and mints it to the specified address.
+    * @param tokenURI The URI of the token's metadata.
+    * @param minterAddress The address to which the token will be minted.
+    * @return tokenIdentity The ID of the minted token.
+    */
+    function mint(string memory tokenURI, address minterAddress) public returns (uint256 tokenIdentity) {
+        require(bytes(tokenURI).length > 0, "Token URI must not be empty");
+        require(minterAddress != address(0), "Minter address cannot be zero");
         tokenCounter++;
         uint256 tokenId = tokenCounter;
 
@@ -148,7 +237,17 @@ contract NFTAuction is ERC721URIStorage, ReentrancyGuard {
         return tokenId;
     }
 
-    function createAuctionListing (uint256 price, uint256 tokenId, uint256 durationInSeconds) public returns (uint256) {
+    /**
+    * @dev Creates a new auction listing for an NFT.
+    * @param price The display price of the NFT.
+    * @param tokenId The ID of the NFT to be listed.
+    * @param durationInSeconds The duration of the auction in seconds.
+    * @return listingID The ID of the created auction listing.
+    */
+    function createAuctionListing (uint256 price, uint256 tokenId, uint256 durationInSeconds) public returns (uint256 listingID) {
+        require(durationInSeconds > 0, "Duration must be greater than zero");
+    require(price > 0, "Price must be greater than zero");
+    require(tokenId > 0, "Token ID must be greater than zero");
         listingCounter++;
         uint256 listingId = listingCounter;
 
@@ -172,42 +271,53 @@ contract NFTAuction is ERC721URIStorage, ReentrancyGuard {
         return listingId;
     }
 
+    /**
+    * @dev Places a bid on an active auction listing.
+    * @param listingId The ID of the auction listing.
+    */
     function bid(uint256 listingId) public payable nonReentrant {
-        require(isAuctionOpen(listingId), 'auction has ended');
+        require(isAuctionOpen(listingId), "Auction has ended");
         Listing storage listing = listings[listingId];
-        require(msg.sender != listing.seller, "cannot bid on what you own");
+        require(msg.sender != listing.seller, "Cannot bid on what you own");
+        require(msg.value > 0, "Bid value must be greater than zero");
 
         uint256 newBid = bids[listingId][msg.sender] + msg.value;
-        require(newBid >= listing.price, "cannot bid below the latest bidding price");
+        require(newBid >= listing.price, "Cannot bid below the latest bidding price");
 
         bids[listingId][msg.sender] += msg.value;
         highestBidder[listingId] = msg.sender;
 
-        uint256 incentive = listing.price / minAuctionIncrement;
+        uint256 incentive = listing.price * minAuctionIncrement / 100;
         listing.price = listing.price + incentive;
 
         emit BidCreated(listingId, msg.sender, newBid);
     }
 
 
+
+    /**
+    * @dev Completes an auction and transfers the NFT to the winner.
+    * @param listingId The ID of the auction listing to be completed.
+    */
     function completeAuction(uint256 listingId) public payable nonReentrant {
-        require(!isAuctionOpen(listingId), 'auction is still open');
+        require(!isAuctionOpen(listingId), "Auction is still open");
 
         Listing storage listing = listings[listingId];
         address winner = highestBidder[listingId]; 
         require(
             msg.sender == listing.seller || msg.sender == winner, 
-            'only seller or winner can complete auction'
+            "Only the seller or the winner can complete the auction"
         );
 
-        if(winner != address(0)) {
-           _transfer(address(this), winner, listing.tokenId);
+        if (winner != address(0)) {
+            _transfer(address(this), winner, listing.tokenId);
 
             uint256 amount = bids[listingId][winner]; 
+            require(amount > 0, "Invalid bid amount");
             bids[listingId][winner] = 0;
             _transferFund(payable(listing.seller), amount);
-
         } else {
+            require(listing.seller != address(0), "Invalid seller address");
             _transfer(address(this), listing.seller, listing.tokenId);
         }
 
@@ -216,39 +326,62 @@ contract NFTAuction is ERC721URIStorage, ReentrancyGuard {
         emit AuctionCompleted(listingId, listing.seller, winner, bids[listingId][winner]);
     }
 
+
+    /**
+    * @dev Withdraws a bid from an expired auction listing.
+    * @param listingId The ID of the auction listing.
+    */
     function withdrawBid(uint256 listingId) public payable nonReentrant {
-        require(isAuctionExpired(listingId), 'auction must be ended');
-        require(highestBidder[listingId] != msg.sender, 'highest bidder cannot withdraw bid');
+        require(isAuctionExpired(listingId), "Auction must be ended");
+        require(highestBidder[listingId] != msg.sender, "Highest bidder cannot withdraw bid");
 
         uint256 balance = bids[listingId][msg.sender];
+        require(balance > 0, "No available bid to withdraw");
         bids[listingId][msg.sender] = 0;
         _transferFund(payable(msg.sender), balance);
 
         emit WithdrawBid(listingId, msg.sender, balance);
-
     }
 
+    /**
+    * @dev Checks if an auction listing is open.
+    * @param id The ID of the auction listing.
+    * @return A boolean indicating whether the auction listing is open.
+    */
     function isAuctionOpen(uint256 id) public view returns (bool) {
+        require(id > 0 && id <= listingCounter, "Invalid listing ID");
+
         return
             listings[id].status == STATUS_OPEN &&
             listings[id].endAt > block.timestamp;
     }
 
 
+
+    /**
+    * @dev Checks if an auction listing has expired.
+    * @param id The ID of the auction listing.
+    * @return A boolean indicating whether the auction listing has expired.
+    */
     function isAuctionExpired(uint256 id) public view returns (bool) {
+        require(id > 0 && id <= listingCounter, "Invalid listing ID");   
         return listings[id].endAt <= block.timestamp;
     }
 
 
+    /**
+    * @dev Transfers funds to the specified recipient.
+    * @param to The address of the recipient.
+    * @param amount The amount of funds to transfer.
+    */
     function _transferFund(address payable to, uint256 amount) internal {
-        if (amount == 0) {
-            return;
-        }
-        require(to != address(0), 'Error, cannot transfer to address(0)');
+        require(amount > 0, "Invalid transfer amount");
+        require(to != address(0), "Invalid recipient address");
 
         (bool transferSent, ) = to.call{value: amount}("");
-        require(transferSent, "Error, failed to send Ether");
+        require(transferSent, "Failed to send Ether");
     }
+
 
 }
 ```
