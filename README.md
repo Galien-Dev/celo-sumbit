@@ -93,6 +93,7 @@ Open your preferred code editor and create a new Solidity file called NFTAuction
 Copy and paste the following code into the file:
 
 ```solidity
+
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
@@ -136,7 +137,9 @@ contract NFTAuction is ERC721URIStorage, ReentrancyGuard {
     }
 
 
-    function mint(string memory tokenURI, address minterAddress) public returns (uint256) {
+    function mint(string memory tokenURI, address minterAddress) public returns (uint256 tokenIdentity) {
+        require(bytes(tokenURI).length > 0, "Token URI must not be empty");
+        require(minterAddress != address(0), "Minter address cannot be zero");
         tokenCounter++;
         uint256 tokenId = tokenCounter;
 
@@ -148,7 +151,10 @@ contract NFTAuction is ERC721URIStorage, ReentrancyGuard {
         return tokenId;
     }
 
-    function createAuctionListing (uint256 price, uint256 tokenId, uint256 durationInSeconds) public returns (uint256) {
+    function createAuctionListing (uint256 price, uint256 tokenId, uint256 durationInSeconds) public returns (uint256 listingID) {
+        require(durationInSeconds > 0, "Duration must be greater than zero");
+    require(price > 0, "Price must be greater than zero");
+    require(tokenId > 0, "Token ID must be greater than zero");
         listingCounter++;
         uint256 listingId = listingCounter;
 
@@ -173,41 +179,44 @@ contract NFTAuction is ERC721URIStorage, ReentrancyGuard {
     }
 
     function bid(uint256 listingId) public payable nonReentrant {
-        require(isAuctionOpen(listingId), 'auction has ended');
+        require(isAuctionOpen(listingId), "Auction has ended");
         Listing storage listing = listings[listingId];
-        require(msg.sender != listing.seller, "cannot bid on what you own");
+        require(msg.sender != listing.seller, "Cannot bid on what you own");
+        require(msg.value > 0, "Bid value must be greater than zero");
 
         uint256 newBid = bids[listingId][msg.sender] + msg.value;
-        require(newBid >= listing.price, "cannot bid below the latest bidding price");
+        require(newBid >= listing.price, "Cannot bid below the latest bidding price");
 
         bids[listingId][msg.sender] += msg.value;
         highestBidder[listingId] = msg.sender;
 
-        uint256 incentive = listing.price / minAuctionIncrement;
+        uint256 incentive = listing.price * minAuctionIncrement / 100;
         listing.price = listing.price + incentive;
 
         emit BidCreated(listingId, msg.sender, newBid);
     }
 
 
+
     function completeAuction(uint256 listingId) public payable nonReentrant {
-        require(!isAuctionOpen(listingId), 'auction is still open');
+        require(!isAuctionOpen(listingId), "Auction is still open");
 
         Listing storage listing = listings[listingId];
         address winner = highestBidder[listingId]; 
         require(
             msg.sender == listing.seller || msg.sender == winner, 
-            'only seller or winner can complete auction'
+            "Only the seller or the winner can complete the auction"
         );
 
-        if(winner != address(0)) {
-           _transfer(address(this), winner, listing.tokenId);
+        if (winner != address(0)) {
+            _transfer(address(this), winner, listing.tokenId);
 
             uint256 amount = bids[listingId][winner]; 
+            require(amount > 0, "Invalid bid amount");
             bids[listingId][winner] = 0;
             _transferFund(payable(listing.seller), amount);
-
         } else {
+            require(listing.seller != address(0), "Invalid seller address");
             _transfer(address(this), listing.seller, listing.tokenId);
         }
 
@@ -216,41 +225,48 @@ contract NFTAuction is ERC721URIStorage, ReentrancyGuard {
         emit AuctionCompleted(listingId, listing.seller, winner, bids[listingId][winner]);
     }
 
+
     function withdrawBid(uint256 listingId) public payable nonReentrant {
-        require(isAuctionExpired(listingId), 'auction must be ended');
-        require(highestBidder[listingId] != msg.sender, 'highest bidder cannot withdraw bid');
+        require(isAuctionExpired(listingId), "Auction must be ended");
+        require(highestBidder[listingId] != msg.sender, "Highest bidder cannot withdraw bid");
 
         uint256 balance = bids[listingId][msg.sender];
+        require(balance > 0, "No available bid to withdraw");
         bids[listingId][msg.sender] = 0;
         _transferFund(payable(msg.sender), balance);
 
         emit WithdrawBid(listingId, msg.sender, balance);
-
     }
 
+
     function isAuctionOpen(uint256 id) public view returns (bool) {
+        require(id > 0 && id <= listingCounter, "Invalid listing ID");
+
         return
             listings[id].status == STATUS_OPEN &&
             listings[id].endAt > block.timestamp;
     }
 
 
+
     function isAuctionExpired(uint256 id) public view returns (bool) {
+        require(id > 0 && id <= listingCounter, "Invalid listing ID");   
         return listings[id].endAt <= block.timestamp;
     }
 
 
-    function _transferFund(address payable to, uint256 amount) internal {
-        if (amount == 0) {
-            return;
-        }
-        require(to != address(0), 'Error, cannot transfer to address(0)');
 
+    function _transferFund(address payable to, uint256 amount) internal {
+        require(amount > 0, "Invalid transfer amount");
+        require(to != address(0), "Invalid recipient address");
+    
         (bool transferSent, ) = to.call{value: amount}("");
-        require(transferSent, "Error, failed to send Ether");
+        require(transferSent, "Failed to send Ether");
     }
 
+
 }
+
 ```
 The above contract has a `tokenCounter` and `listingCounter` to keep track of the number of NFTs and auctions, respectively.
 The contract also has several constant values such as the minimum auction increment and the auction status, which can be open or done. 
