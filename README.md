@@ -1,9 +1,9 @@
-#  Building an NFT Auction Smart Contract in Solidity on celo blockchain
+#  Building an NFT Auction Smart Contract in Solidity on Celo Blockchain:
 
-## Table of contents
+## Table of contents:
 
 - [Introduction](#introduction)
-- [Prerequisites](#prerequisites)
+- [Pre-requisites](#pre-requisites)
 - [Step 1: Setting up the Truffle Project](#step-1-setting-up-the-truffle-project)
 - [Step 2: Setting up the Smart Contract](#step-2-setting-up-the-smart-contract)
 - [Step 3: Implementing the Auction Functionality](#step-3-implementing-the-auction-sunctionality)
@@ -11,32 +11,34 @@
 - [Step 5: Running the Tests](#step-5-running-the-tests)
 - [Conclusion](#conclusion)
 
-## Introduction
-Non-fungible tokens (NFTs) have gained significant popularity as they provide a unique way to own, transfer, 
-and trade digital assets. NFTs enable the creation and sale of one-of-a-kind digital items like artwork,
-collectibles, and virtual real estate. To facilitate this new form of commerce, smart contracts play a crucial role. 
-In this tutorial, we will explore the implementation of an NFT auction smart contract in Solidity, specifically for the Celo blockchain using the Alfajores testnet.
+## Introduction:
+Non-fungible tokens (NFTs) have gained significant popularity recently as they provide a unique way to own, transfer and trade digital assets. NFTs enable the creation and sale of one-of-a-kind digital items like artwork, collectibles and virtual real estate. To facilitate this new form of commerce, Smart Contracts play a crucial role. 
+In this tutorial, we will explore the implementation of an NFT auction Smart Contract in Solidity, specifically for the Celo blockchain using the Alfajores testnet.
 
-## Prerequisites
+## Pre-requisites:
 
 Before we begin, ensure that you have the following:
 
-- Basic knowledge of Solidity programming language.
-- An understanding of ERC-721 standard for NFTs.
-- Familiarity with the OpenZeppelin library.
-- Truffle installed and configured.
+- Knowledge of [Solidity](https://docs.soliditylang.org/en/v0.8.20/) programming language.
+- Understanding of [ERC-721](https://ethereum.org/en/developers/docs/standards/tokens/erc-721/) standard for NFTs.
+- Familiarity with the [OpenZeppelin](https://docs.openzeppelin.com/) library.
+- Install and configure [Truffle]()
 
-## Step 1: Setting up the Truffle Project
+## Step 1: Setting up the Truffle Project:
+
 1. Open a terminal and navigate to the directory where you want to create your Truffle project run the commands below.
 ```bash
 mkdir nft-auction
 cd nft-auction
 ```
+
 2. Run the following command to initialize a new Truffle projec
 ```bash
 truffle init
 ```
+
 This will create a basic Truffle project structure with the necessary files.
+
 3. Open the truffle-config.js file and configure the Celo network settings:
 ```javascript
 module.exports = {
@@ -63,8 +65,9 @@ module.exports = {
 ```
 Replace `mnemonic` with your Celo testnet mnemonic.
 
-## Step 2: Setting up the Smart Contract
-First, let's set up the basic structure of our NFT auction smart contract.
+## Step 2: Setting up the Smart Contract:
+
+First, let's set up the basic structure of our NFT auction Smart Contract.
 Open your preferred code editor and create a new Solidity file called NFTAuction.sol.
 Copy and paste the following code into the file:
 
@@ -86,56 +89,47 @@ contract NFTAuction is ERC721 {
 In this contract, we import the `ERC721` contract from the OpenZeppelin library and inherit from it.
 The `constructor` function is called during contract deployment and can be used for initialization.
 
-## Step 3: Implementing the Auction Functionality
+## Step 3: Implementing the Auction Functionality:
 
-First, let's set up the basic structure of our NFT auction smart contract.
+First, let's set up the basic structure of our NFT auction Smart Contract.
 Open your preferred code editor and create a new Solidity file called NFTAuction.sol.
 Copy and paste the following code into the file:
 
 ```solidity
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import '@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol';
-import '@openzeppelin/contracts/security/ReentrancyGuard.sol';
-
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 contract NFTAuction is ERC721URIStorage, ReentrancyGuard {
-
-    uint256 public tokenCounter;
-    uint256 public listingCounter;
-
-    uint8 public constant STATUS_OPEN = 1;
-    uint8 public constant STATUS_DONE = 2;
-
-    uint256 public minAuctionIncrement = 10; // 10 percent
-
     struct Listing {
         address seller;
         uint256 tokenId;
-        uint256 price; // display price
-        uint256 netPrice; // actual price
-        uint256 startAt;
-        uint256 endAt; 
+        uint256 price;
+        uint256 netPrice;
         uint8 status;
+        uint256 startAt;
+        uint256 endAt;
     }
 
-    event Minted(address indexed minter, uint256 nftID, string uri);
-    event AuctionCreated(uint256 listingId, address indexed seller, uint256 price, uint256 tokenId, uint256 startAt, uint256 endAt);
-    event BidCreated(uint256 listingId, address indexed bidder, uint256 bid);
-    event AuctionCompleted(uint256 listingId, address indexed seller, address indexed bidder, uint256 bid);
-    event WithdrawBid(uint256 listingId, address indexed bidder, uint256 bid);
+    mapping(uint256 => Listing) public listings; // Stores auction listings by listing ID
+    mapping(uint256 => mapping(address => uint256)) public bids; // Stores bids by listing ID and bidder address
+    mapping(uint256 => address) public highestBidder; // Stores the highest bidder address for each listing
 
-    mapping(uint256 => Listing) public listings;
-    mapping(uint256 => mapping(address => uint256)) public bids;
-    mapping(uint256 => address) public highestBidder;
+    uint256 public tokenCounter; // Counter for token IDs
+    uint256 public listingCounter; // Counter for listing IDs
+    uint256 public constant minAuctionIncrement = 10; // Example value, you can adjust it as needed
+    uint8 public constant STATUS_OPEN = 1; // Status indicating that the auction is open
+    uint8 public constant STATUS_DONE = 2; // Status indicating that the auction is completed
 
-    constructor() ERC721("AmazonNFT", "ANFT") {
-        tokenCounter = 0;
-        listingCounter = 0;
-    }
+    event Minted(address indexed minter, uint256 indexed tokenId, string tokenURI);
+    event AuctionCreated(uint256 indexed listingId, address indexed seller, uint256 price, uint256 tokenId, uint256 startAt, uint256 endAt);
+    event BidCreated(uint256 indexed listingId, address indexed bidder, uint256 bidAmount);
+    event AuctionCompleted(uint256 indexed listingId, address indexed seller, address indexed winner, uint256 winningBid);
+    event WithdrawBid(uint256 indexed listingId, address indexed bidder, uint256 amount);
 
-
+    // Mint a new NFT and assign it to the given minter
     function mint(string memory tokenURI, address minterAddress) public returns (uint256) {
         tokenCounter++;
         uint256 tokenId = tokenCounter;
@@ -148,7 +142,8 @@ contract NFTAuction is ERC721URIStorage, ReentrancyGuard {
         return tokenId;
     }
 
-    function createAuctionListing (uint256 price, uint256 tokenId, uint256 durationInSeconds) public returns (uint256) {
+    // Create a new auction listing for the given token with a specified price and duration
+    function createAuctionListing(uint256 price, uint256 tokenId, uint256 durationInSeconds) public returns (uint256) {
         listingCounter++;
         uint256 listingId = listingCounter;
 
@@ -172,13 +167,14 @@ contract NFTAuction is ERC721URIStorage, ReentrancyGuard {
         return listingId;
     }
 
+    // Place a bid on an open auction listing
     function bid(uint256 listingId) public payable nonReentrant {
-        require(isAuctionOpen(listingId), 'auction has ended');
+        require(isAuctionOpen(listingId), 'Auction has ended or not open');
         Listing storage listing = listings[listingId];
-        require(msg.sender != listing.seller, "cannot bid on what you own");
+        require(msg.sender != listing.seller, "Cannot bid on what you own");
 
         uint256 newBid = bids[listingId][msg.sender] + msg.value;
-        require(newBid >= listing.price, "cannot bid below the latest bidding price");
+        require(newBid >= listing.price, "Cannot bid below the latest bidding price");
 
         bids[listingId][msg.sender] += msg.value;
         highestBidder[listingId] = msg.sender;
@@ -189,24 +185,22 @@ contract NFTAuction is ERC721URIStorage, ReentrancyGuard {
         emit BidCreated(listingId, msg.sender, newBid);
     }
 
-
+    // Complete an auction by transferring the token to the winner and handling the funds
     function completeAuction(uint256 listingId) public payable nonReentrant {
-        require(!isAuctionOpen(listingId), 'auction is still open');
-
+        require(!isAuctionOpen(listingId), 'Auction is still open');
         Listing storage listing = listings[listingId];
         address winner = highestBidder[listingId]; 
         require(
             msg.sender == listing.seller || msg.sender == winner, 
-            'only seller or winner can complete auction'
+            'Only seller or winner can complete auction'
         );
 
-        if(winner != address(0)) {
-           _transfer(address(this), winner, listing.tokenId);
+        if (winner != address(0)) {
+            _transfer(address(this), winner, listing.tokenId);
 
             uint256 amount = bids[listingId][winner]; 
             bids[listingId][winner] = 0;
             _transferFund(payable(listing.seller), amount);
-
         } else {
             _transfer(address(this), listing.seller, listing.tokenId);
         }
@@ -216,56 +210,55 @@ contract NFTAuction is ERC721URIStorage, ReentrancyGuard {
         emit AuctionCompleted(listingId, listing.seller, winner, bids[listingId][winner]);
     }
 
+    // Withdraw a bid from an expired auction
     function withdrawBid(uint256 listingId) public payable nonReentrant {
-        require(isAuctionExpired(listingId), 'auction must be ended');
-        require(highestBidder[listingId] != msg.sender, 'highest bidder cannot withdraw bid');
+        require(isAuctionExpired(listingId), 'Auction must be ended');
+        require(highestBidder[listingId] != msg.sender, 'Highest bidder cannot withdraw bid');
 
         uint256 balance = bids[listingId][msg.sender];
+        require(balance > 0, 'No funds available to withdraw');
         bids[listingId][msg.sender] = 0;
         _transferFund(payable(msg.sender), balance);
 
         emit WithdrawBid(listingId, msg.sender, balance);
-
     }
 
+    // Check if an auction is currently open
     function isAuctionOpen(uint256 id) public view returns (bool) {
         return
             listings[id].status == STATUS_OPEN &&
             listings[id].endAt > block.timestamp;
     }
 
-
+    // Check if an auction has expired
     function isAuctionExpired(uint256 id) public view returns (bool) {
         return listings[id].endAt <= block.timestamp;
     }
 
-
+    // Transfer funds from the contract to a recipient address
     function _transferFund(address payable to, uint256 amount) internal {
-        if (amount == 0) {
-            return;
-        }
-        require(to != address(0), 'Error, cannot transfer to address(0)');
+        require(to != address(0), 'Invalid recipient address');
+        require(amount > 0, 'Invalid transfer amount');
 
         (bool transferSent, ) = to.call{value: amount}("");
-        require(transferSent, "Error, failed to send Ether");
+        require(transferSent, "Failed to send Ether");
     }
-
 }
+
 ```
 The above contract has a `tokenCounter` and `listingCounter` to keep track of the number of NFTs and auctions, respectively.
 The contract also has several constant values such as the minimum auction increment and the auction status, which can be open or done. 
-The structure Listing is used to store information about each auction, such as the seller, tokenId, price, start time, and end time.
+The structure Listing is used to store information about each auction, such as the seller, tokenId, price, start time and end time.
 
-The contract also has several mappings to keep track of the auction listings, bids, and highest bidder.
+The contract also has several mappings to keep track of the auction listings, bids and highest bidder.
 The `mint` function is used to create a new NFT and `createAuctionListing` is used to create a new auction.
-The  `bid` function allows a user to place or update a bid on an auction and the  completeAuction  function allows
-the auction to be completed by either the seller or the highest bidder. The  `withdrawBid` function allows
-a user to withdraw their bid if the auction has ended and they are not the highest bidder.
+The  `bid` function allows a user to place or update a bid on an auction and the  `completeAuction`  function allows the auction to be completed by either the seller or the highest bidder. The  `withdrawBid` function allows a user to withdraw their bid if the auction has ended and they are not the highest bidder.
 
-The `isAuctionOpen` checks if the auction is still running based on the status and timestamp of the auction and 
+The `isAuctionOpen` checks if the auction is still running based on the status and timestamp of the auction and,
 The `isAuctionExpired` method does check if the auction is closed. The `_transferFund method` is used to transfer funds (Ether) from one address to another.
 
-### Step 4: Testing the Smart Contract
+### Step 4: Testing the Smart Contract:
+
 Let us create the testing deployment script file and paste the following codes:
 ```javascritp
 const { constants } = require("@openzeppelin/test-helpers");
@@ -463,25 +456,19 @@ describe.only("NFT Auction Test Cases", () => {
 
 The above test file contains the following test cases:
 
-- **Minting an NFT**: a user mints an NFT using the mint function and verifies that the correct
+1. **Minting an NFT**: a user mints an NFT using the mint function and verifies that the correct
 NFT ID is generated and the user is set as the owner of the NFT.
-- **Auction listing**`: the user creates an auction listing for the NFT, and the test verifies that the correct
+2. **Auction listing**`: the user creates an auction listing for the NFT, and the test verifies that the correct
 listing ID is generated and the NFT is transferred to the contract as the escrow account.
-- **Placing bids, updating bids, completing the auction, and withdrawing funds**: two bidders place bids for the NFT, and then
--  one of the bidders updates their bid to become the highest bidder. The test checks that the bidders’ balances decrease after 
--  they place their bids. After 3 days, the highest bidder completes the auction, and the NFT owner collects the funds. The test verifies 
--  that the NFT owner’s balance increases after the auction is completed.
+3. **Placing bids, updating bids, completing the auction, and withdrawing funds**: two bidders place bids for the NFT, and then one of the bidders updates their bid to become the highest bidder. The test checks that the bidders’ balances decrease after they place their bids. After 3 days, the highest bidder completes the auction and the NFT owner collects the funds. The test verifies that the NFT owner’s balance increases after the auction is completed.
 
-## Step 5: Running the Tests
+## Step 5: Running the Tests:
 To run the tests, follow these steps:
 
-1. Install Truffle framework if you haven't already: npm install -g truffle
+1. Install [Truffle](https://trufflesuite.com/docs/truffle/) framework if you haven't already: npm install -g truffle
 2. Open a terminal and navigate to the directory containing the NFTAuctionTest.sol file.
 3. Run the tests using the Truffle command: truffle test
 Ensure that your tests pass successfully without any errors or failures.
 
-## Conclusion
-In this tutorial, we explored the implementation of an NFT auction smart contract in Solidity.
-We covered the setup of the smart contract, the implementation of the auction functionality,
-and the creation of test cases. Building on this foundation, you can further enhance the smart contract
-to suit your specific requirements and deploy it on the Celo blockchain using the Alfajores testnet.
+## Conclusion:
+Therefore, in this tutorial we explored the implementation of an NFT auction Smart Contract in Solidity. We have also covered the setup of the Smart Contract, the implementation of the auction functionality and the creation of test cases. Building on this foundation, you can further enhance the Smart Contract to suit your specific requirements and deploy it on the Celo blockchain using the Alfajores testnet.
